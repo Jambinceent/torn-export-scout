@@ -3,6 +3,8 @@
 // - Regular items export for 75% of their NPC price (market_value).
 // - Black market items export for 100% of their NPC price, and their
 //   export price moves over time (mechanics unknown — treated as live value).
+// - You can only export an item to a country if that country's shop also
+//   stocks it (per the user).
 
 export interface TornItem {
   id: number;
@@ -16,6 +18,26 @@ export interface MarketListing {
   price: number;
   amount: number;
 }
+
+export interface Country {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+export const COUNTRIES: Country[] = [
+  { code: "mex", name: "Mexico", flag: "🇲🇽" },
+  { code: "cay", name: "Cayman Islands", flag: "🇰🇾" },
+  { code: "can", name: "Canada", flag: "🇨🇦" },
+  { code: "haw", name: "Hawaii", flag: "🌺" },
+  { code: "uni", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "arg", name: "Argentina", flag: "🇦🇷" },
+  { code: "swi", name: "Switzerland", flag: "🇨🇭" },
+  { code: "jap", name: "Japan", flag: "🇯🇵" },
+  { code: "chi", name: "China", flag: "🇨🇳" },
+  { code: "uae", name: "UAE", flag: "🇦🇪" },
+  { code: "sou", name: "South Africa", flag: "🇿🇦" },
+];
 
 export interface ExportRow {
   item: TornItem;
@@ -41,6 +63,15 @@ export function exportPriceFor(
 ): number {
   const rate = blackMarket ? 1 : standardRate;
   return Math.floor(marketValue * rate);
+}
+
+// Only items stocked by the destination country's shop can be exported there.
+export function filterExportable(
+  items: TornItem[],
+  stockedItemIds: Set<number> | null,
+): TornItem[] {
+  if (!stockedItemIds) return items;
+  return items.filter((i) => stockedItemIds.has(i.id));
 }
 
 export function buildExportRow(

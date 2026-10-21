@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 
 import type { MarketListing, TornItem } from "./torn";
 
-// Server-side proxy for the Torn API v2. The user's API key is sent with each
-// request and never stored server-side.
+// Server-side proxy for the Torn API v2 plus the YATA abroad-stock feed.
+// The user's API key is sent with each request and never stored server-side.
 
 interface TornItemsResponse {
   items?: Array<{
@@ -25,9 +25,23 @@ interface TornMarketResponse {
   error?: { code: number; error: string };
 }
 
+// YATA travel/export feed: abroad stock per country. Shape is community-run
+// and not formally versioned, so parsing is defensive.
+interface YataExportResponse {
+  stocks?: Record<
+    string,
+    {
+      items?: Array<{ id?: number; item_id?: number; quantity?: number }>;
+    }
+  >;
+}
+
 export interface TornMarketData {
   items: TornItem[];
   listingsByItem: Record<number, MarketListing[]>;
+  // country code -> item ids that country's shop stocks (exportable there)
+  countryStock: Record<string, number[]>;
+  countryStockSource: "yata" | "none";
 }
 
 async function tornFetch<T>(url: string): Promise<T> {
@@ -42,6 +56,30 @@ async function tornFetch<T>(url: string): Promise<T> {
   return data;
 }
 
+async function fetchCountryStock(): Promise<{
+  countryStock: Record<string, number[]>;
+  source: "yata" | "none";
+}> {
+  try {
+    const res = await fetch("https://yata.yt/api/v1/travel/export/", {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) return { countryStock: {}, source: "none" };
+    const data = (await res.json()) as YataExportResponse;
+    const countryStock: Record<string, number[]> = {};
+    for (const [code, stock] of Object.entries(data.stocks ?? {})) {
+      const ids = (stock.items ?? [])
+        .map((i) => i.id ?? i.item_id)
+        .filter((id): id is number => typeof id === "number");
+      countryStock[code] = ids;
+    }
+    return { countryStock, source: "yata" };
+  } catch {
+    // Country stock is a filter aid, not core data — degrade gracefully.
+    return { countryStock: {}, source: "none" };
+  }
+}
+
 export const fetchTornMarket = createServerFn({ method: "POST" })
   .inputValidator((input: { apiKey: string }) => {
     if (!input?.apiKey || typeof input.apiKey !== "string") {
@@ -52,11 +90,12 @@ export const fetchTornMarket = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<TornMarketData> => {
     const key = encodeURIComponent(data.apiKey);
 
-    const [itemsRes, marketRes] = await Promise.all([
+    const [itemsRes, marketRes, stock] = await Promise.all([
       tornFetch<TornItemsResponse>(`https://api.torn.com/v2/torn/items?key=${key}`),
       tornFetch<TornMarketResponse>(
         `https://api.torn.com/v2/market/?selections=itemmarket&key=${key}`,
       ),
+      fetchCountryStock(),
     ]);
 
     const items: TornItem[] = (itemsRes.items ?? [])
@@ -81,5 +120,10 @@ export const fetchTornMarket = createServerFn({ method: "POST" })
       }
     }
 
-    return { items, listingsByItem };
+    return {
+      items,
+      listingsByItem,
+      countryStock: stock.countryStock,
+      countryStockSource: stock.source,
+    };
   });
