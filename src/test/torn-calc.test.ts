@@ -50,6 +50,6 @@ describe("Travel export rules", () => {
       buildExportRow({ id: 1, name: "A", type: "Flower", market_value: 1000 }, 1000, [{ price: 900, amount: 1 }], false),
       buildExportRow({ id: 2, name: "B", type: "Drug", market_value: 1000 }, 1000, [{ price: 500, amount: 1 }], true),
     ]);
-    expect(rows[0].item.name).toBe("B");
+    expect(rows[0]?.item.name).toBe("B");
   });
 });

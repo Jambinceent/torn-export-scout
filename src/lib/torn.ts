@@ -13,7 +13,7 @@ export interface TornItem {
   name: string;
   type: string;
   market_value: number;
-  image?: string;
+  image?: string | undefined;
 }
 
 export interface MarketListing {
