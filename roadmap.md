@@ -1,8 +1,8 @@
 # Roadmap
 
-- [x] Export profit calculator (75% NPC price, 100% for black market items)
+- [x] Export profit calculator (75% of foreign shop price, 100% for black market)
 - [x] Torn API proxy (items + market listings) via server function
-- [ ] Destination picker: only rank items purchasable in the selected country (foreign stock)
-- [ ] Read Torn staff article (newspaper.php#/articles/2897) and confirm export mechanics
-- [ ] Results table UI (rank by profit, suitcase math, black market toggle)
-- [ ] Run tests, verify build, check preview
+- [x] Destination picker: only rank items the selected country's shop stocks (YATA foreign-stock feed)
+- [x] Results table UI (rank by profit, suitcase math, black market toggle)
+- [x] Read Torn staff article (newspaper #2897) — confirmed export mechanics
+- [x] Run tests, verify build, check preview
