@@ -1,10 +1,12 @@
 // Pure domain logic for the Torn export-profit tool.
-// Rules from the user (Travel 3.0):
-// - Regular items export for 75% of their NPC price (market_value).
-// - Black market items export for 100% of their NPC price, and their
-//   export price moves over time (mechanics unknown — treated as live value).
-// - You can only export an item to a country if that country's shop also
-//   stocks it (per the user).
+// Rules confirmed from the Torn staff article (newspaper #2897, Travel Phase 3):
+// - Foreign shops buy back only the items they sell themselves.
+// - Black market goods (drugs) are bought back at their current foreign
+//   price, which fluctuates throughout the day.
+// - All other items are bought back at 75% of the foreign shop's standard
+//   sell price.
+// - Weapons/armor sales are capped at 100 per type per trip; drugs uncapped
+//   (limited only by travel inventory slots).
 
 export interface TornItem {
   id: number;
@@ -39,48 +41,50 @@ export const COUNTRIES: Country[] = [
   { code: "sou", name: "South Africa", flag: "🇿🇦" },
 ];
 
+// An item a foreign shop stocks, with its current foreign sell price.
+export interface ForeignStockEntry {
+  itemId: number;
+  price: number; // the foreign shop's current sell price
+  quantity: number | null;
+}
+
 export interface ExportRow {
   item: TornItem;
   blackMarket: boolean;
-  exportPrice: number; // per unit, what the destination pays
-  cheapestPrice: number | null; // cheapest market/bazaar listing
+  foreignPrice: number; // what the foreign shop sells it for
+  exportPrice: number; // per unit, what the destination pays you
+  cheapestPrice: number | null; // cheapest Torn market/bazaar listing
   cheapestAmount: number; // units available at cheapest price
   profitPerUnit: number | null;
   roiPct: number | null;
 }
 
-// Item types treated as black market by default. Users can toggle any row.
+// Drugs are the black market goods per the staff article.
 export const DEFAULT_BLACK_MARKET_TYPES = new Set(["Drug"]);
 
 export function isBlackMarketDefault(item: Pick<TornItem, "type">): boolean {
   return DEFAULT_BLACK_MARKET_TYPES.has(item.type);
 }
 
+// Black market: 100% of current foreign price. Everything else: 75% of the
+// foreign shop's standard sell price.
 export function exportPriceFor(
-  marketValue: number,
+  foreignPrice: number,
   blackMarket: boolean,
   standardRate = 0.75,
 ): number {
   const rate = blackMarket ? 1 : standardRate;
-  return Math.floor(marketValue * rate);
-}
-
-// Only items stocked by the destination country's shop can be exported there.
-export function filterExportable(
-  items: TornItem[],
-  stockedItemIds: Set<number> | null,
-): TornItem[] {
-  if (!stockedItemIds) return items;
-  return items.filter((i) => stockedItemIds.has(i.id));
+  return Math.floor(foreignPrice * rate);
 }
 
 export function buildExportRow(
   item: TornItem,
+  foreignPrice: number,
   listings: MarketListing[] | undefined,
   blackMarket: boolean,
   standardRate = 0.75,
 ): ExportRow {
-  const exportPrice = exportPriceFor(item.market_value, blackMarket, standardRate);
+  const exportPrice = exportPriceFor(foreignPrice, blackMarket, standardRate);
   const cheapest = listings?.length
     ? listings.reduce((a, b) => (a.price <= b.price ? a : b))
     : null;
@@ -94,6 +98,7 @@ export function buildExportRow(
   return {
     item,
     blackMarket,
+    foreignPrice,
     exportPrice,
     cheapestPrice: cheapest?.price ?? null,
     cheapestAmount: cheapest?.amount ?? 0,

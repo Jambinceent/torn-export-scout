@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import type { MarketListing, TornItem } from "./torn";
+import type { ForeignStockEntry, MarketListing, TornItem } from "./torn";
 
 // Server-side proxy for the Torn API v2 plus the YATA abroad-stock feed.
 // The user's API key is sent with each request and never stored server-side.
@@ -31,7 +31,13 @@ interface YataExportResponse {
   stocks?: Record<
     string,
     {
-      items?: Array<{ id?: number; item_id?: number; quantity?: number }>;
+      items?: Array<{
+        id?: number;
+        item_id?: number;
+        cost?: number;
+        price?: number;
+        quantity?: number;
+      }>;
     }
   >;
 }
@@ -39,8 +45,8 @@ interface YataExportResponse {
 export interface TornMarketData {
   items: TornItem[];
   listingsByItem: Record<number, MarketListing[]>;
-  // country code -> item ids that country's shop stocks (exportable there)
-  countryStock: Record<string, number[]>;
+  // country code -> items that country's shop stocks (exportable there)
+  countryStock: Record<string, ForeignStockEntry[]>;
   countryStockSource: "yata" | "none";
 }
 
@@ -57,7 +63,7 @@ async function tornFetch<T>(url: string): Promise<T> {
 }
 
 async function fetchCountryStock(): Promise<{
-  countryStock: Record<string, number[]>;
+  countryStock: Record<string, ForeignStockEntry[]>;
   source: "yata" | "none";
 }> {
   try {
@@ -66,12 +72,22 @@ async function fetchCountryStock(): Promise<{
     });
     if (!res.ok) return { countryStock: {}, source: "none" };
     const data = (await res.json()) as YataExportResponse;
-    const countryStock: Record<string, number[]> = {};
+    const countryStock: Record<string, ForeignStockEntry[]> = {};
     for (const [code, stock] of Object.entries(data.stocks ?? {})) {
-      const ids = (stock.items ?? [])
-        .map((i) => i.id ?? i.item_id)
-        .filter((id): id is number => typeof id === "number");
-      countryStock[code] = ids;
+      countryStock[code] = (stock.items ?? [])
+        .map((i) => {
+          const itemId = i.id ?? i.item_id;
+          const price = i.cost ?? i.price;
+          if (typeof itemId !== "number" || typeof price !== "number" || price <= 0) {
+            return null;
+          }
+          return {
+            itemId,
+            price,
+            quantity: typeof i.quantity === "number" ? i.quantity : null,
+          };
+        })
+        .filter((e): e is ForeignStockEntry => e !== null);
     }
     return { countryStock, source: "yata" };
   } catch {
