@@ -26,7 +26,7 @@ describe("Torn v2 scan regression", () => {
     expect(paths).toEqual(["/v2/torn/items", "/api/v1/travel/export/", "/v2/market/206/itemmarket"]);
     expect(result.items.map((item) => item.id)).toEqual([206]);
     expect(result.items[0]?.market_value).toBe(850000);
-    expect(result.countryStock.jap).toEqual([{ itemId: 206, price: 900000, quantity: 0 }]);
+    expect(result.countryStock['jap']).toEqual([{ itemId: 206, price: 900000, quantity: 0 }]);
     expect(result.listingsByItem[206]).toEqual([{ price: 700000, amount: 4 }]);
   });
 

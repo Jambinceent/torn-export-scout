@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Correct Incorrect ID scan error, v2 response parsing, and destination feed parsing; verify regression tests and scan UI.
+- [x] Correct Incorrect ID scan error, v2 response parsing, and destination feed parsing; regression tests pass. A live authenticated scan still requires the user's Torn key in the preview.
 
 - [x] Export profit calculator (75% of foreign shop price, 100% for black market)
 - [x] Torn API proxy (items + market listings) via server function
