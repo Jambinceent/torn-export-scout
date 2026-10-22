@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Correct Incorrect ID scan error, v2 response parsing, and destination feed parsing; verify regression tests and scan UI.
+
 - [x] Export profit calculator (75% of foreign shop price, 100% for black market)
 - [x] Torn API proxy (items + market listings) via server function
 - [x] Destination picker: only rank items the selected country's shop stocks (YATA foreign-stock feed)
