@@ -11,3 +11,4 @@
 
 - Keep Torn API request/parsing logic in the server-only helper, with the server function returning recoverable scan errors as data so users see actionable errors.
 - Scan item-market listings per item ID and only for the selected destination’s stock; this respects Torn’s per-item API contract and avoids unnecessary requests.
+- Normalize bazaar provider responses server-side before passing them to the pure offer-ranking helper; this keeps provider fields and credentials separate from profit calculations.
