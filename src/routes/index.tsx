@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { Button } from "@/components/ui/button";
 
 import { fetchTornMarket, type TornMarketData } from "../lib/torn.functions";
 import {
@@ -35,13 +37,12 @@ export const Route = createFileRoute("/")({
 
 const API_KEY_STORAGE = "torn-export-api-key";
 
-function loadApiKey(): string {
-  if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(API_KEY_STORAGE) ?? "";
-}
-
 function Index() {
-  const [apiKey, setApiKey] = useState(loadApiKey);
+  const [apiKey, setApiKey] = useState("");
+  const fetchMarket = useServerFn(fetchTornMarket);
+  useEffect(() => {
+    setApiKey(window.localStorage.getItem(API_KEY_STORAGE) ?? "");
+  }, []);
   const [country, setCountry] = useState("jap");
   const [ratePct, setRatePct] = useState(75);
   const [slots, setSlots] = useState(20);
@@ -56,8 +57,9 @@ function Index() {
     setError(null);
     try {
       window.localStorage.setItem(API_KEY_STORAGE, apiKey);
-      const result = await fetchTornMarket({ data: { apiKey } });
-      setData(result);
+      const result = await fetchMarket({ data: { apiKey, country } });
+      if (result.error) setError(result.error);
+      setData(result.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -101,14 +103,14 @@ function Index() {
             they stock — black market goods (drugs) at their current
             fluctuating price, everything else at 75% of the shop's sell price.
             This tool compares those payouts against the cheapest live market
-            and bazaar listings in Torn.
+             listings in Torn’s item market. Separate player bazaars are not scanned.
           </p>
         </header>
 
         <section className="mb-6 rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-end gap-4">
             <label className="flex min-w-64 flex-1 flex-col gap-1 text-sm">
-              <span className="font-medium">Torn API key</span>
+              <span className="font-medium">Torn API key (Public access)</span>
               <input
                 type="password"
                 value={apiKey}
@@ -139,13 +141,13 @@ function Index() {
                 className="w-24 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </label>
-            <button
+            <Button
               onClick={scan}
               disabled={loading || !apiKey.trim()}
               className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Scanning market…" : "Scan market"}
-            </button>
+            </Button>
           </div>
           {error && (
             <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -160,9 +162,10 @@ function Index() {
           </h2>
           <div className="flex flex-wrap gap-2">
             {COUNTRIES.map((c) => (
-              <button
+              <Button
                 key={c.code}
-                onClick={() => setCountry(c.code)}
+                disabled={loading}
+                onClick={() => { setCountry(c.code); setData(null); setError(null); }}
                 className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
                   country === c.code
                     ? "border-primary bg-primary text-primary-foreground"
@@ -170,7 +173,7 @@ function Index() {
                 }`}
               >
                 {c.flag} {c.name}
-              </button>
+              </Button>
             ))}
           </div>
           {data && data.countryStockSource === "none" && (
@@ -307,8 +310,8 @@ function Index() {
         {!data && !loading && (
           <p className="text-center text-sm text-muted-foreground">
             Paste your Torn API key and hit <strong>Scan market</strong> to see
-            live export rankings. Your key never leaves your browser except to
-            call the Torn API.
+             export rankings for the selected destination. Your key is sent through
+             this app’s server to Torn and is not saved on the server.
           </p>
         )}
 

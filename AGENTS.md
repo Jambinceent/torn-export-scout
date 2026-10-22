@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep Torn API request/parsing logic in the server-only helper, with the server function returning recoverable scan errors as data so users see actionable errors.
+- Scan item-market listings per item ID and only for the selected destination’s stock; this respects Torn’s per-item API contract and avoids unnecessary requests.
