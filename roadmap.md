@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add TornW3B bazaar offers for scanned items, including seller links, prices, quantities, and export profit; confirm API access before implementation.
+
 - [x] Correct Incorrect ID scan error, v2 response parsing, and destination feed parsing; regression tests pass. A live authenticated scan still requires the user's Torn key in the preview.
 
 - [x] Export profit calculator (75% of foreign shop price, 100% for black market)
