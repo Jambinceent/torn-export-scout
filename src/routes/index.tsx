@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
+import { BazaarResults } from "@/components/bazaar-results";
+import { fetchBazaarItem } from "@/lib/bazaar.functions";
+import type { BazaarOffer } from "@/lib/bazaar";
 
 import { fetchTornMarket, type TornMarketData } from "../lib/torn.functions";
 import {
@@ -40,6 +43,11 @@ const API_KEY_STORAGE = "torn-export-api-key";
 function Index() {
   const [apiKey, setApiKey] = useState("");
   const fetchMarket = useServerFn(fetchTornMarket);
+  const fetchBazaars = useServerFn(fetchBazaarItem);
+  const [expandedItem, setExpandedItem] = useState<number | null>(null);
+  const [bazaarLoading, setBazaarLoading] = useState<number | null>(null);
+  const [bazaarError, setBazaarError] = useState<string | null>(null);
+  const [bazaarPages, setBazaarPages] = useState<Record<number, { offers: BazaarOffer[]; page: number; hasMore: boolean }>>({});
   useEffect(() => {
     setApiKey(window.localStorage.getItem(API_KEY_STORAGE) ?? "");
   }, []);
@@ -53,6 +61,9 @@ function Index() {
   const [hideLosses, setHideLosses] = useState(true);
 
   async function scan() {
+    setExpandedItem(null);
+    setBazaarPages({});
+    setBazaarError(null);
     setLoading(true);
     setError(null);
     try {
@@ -64,6 +75,26 @@ function Index() {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadBazaars(itemId: number, page = 1) {
+    setExpandedItem(itemId);
+    setBazaarLoading(itemId);
+    setBazaarError(null);
+    try {
+      const result = await fetchBazaars({ data: { itemId, page } });
+      if (result.error) setBazaarError(result.error);
+      if (result.data) {
+        const next = result.data;
+        setBazaarPages((previous) => ({ ...previous, [itemId]: {
+          ...next, offers: page === 1 ? next.offers : [...(previous[itemId]?.offers ?? []), ...next.offers],
+        } }));
+      }
+    } catch {
+      setBazaarError("Could not reach TornW3B. Try again later.");
+    } finally {
+      setBazaarLoading(null);
     }
   }
 
@@ -103,7 +134,7 @@ function Index() {
             they stock — black market goods (drugs) at their current
             fluctuating price, everything else at 75% of the shop's sell price.
             This tool compares those payouts against the cheapest live market
-             listings in Torn’s item market. Separate player bazaars are not scanned.
+             listings in Torn’s item market and TornW3B player bazaars.
           </p>
         </header>
 
@@ -143,7 +174,7 @@ function Index() {
             </label>
             <Button
               onClick={scan}
-              disabled={loading || !apiKey.trim()}
+              disabled={loading || bazaarLoading !== null || !apiKey.trim()}
               className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Scanning market…" : "Scan market"}
@@ -164,8 +195,8 @@ function Index() {
             {COUNTRIES.map((c) => (
               <Button
                 key={c.code}
-                disabled={loading}
-                onClick={() => { setCountry(c.code); setData(null); setError(null); }}
+                disabled={loading || bazaarLoading !== null}
+                onClick={() => { setCountry(c.code); setData(null); setError(null); setExpandedItem(null); setBazaarPages({}); setBazaarError(null); }}
                 className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
                   country === c.code
                     ? "border-primary bg-primary text-primary-foreground"
@@ -243,16 +274,17 @@ function Index() {
                     <th className="px-4 py-2">Type</th>
                     <th className="px-4 py-2 text-right">Shop price</th>
                     <th className="px-4 py-2 text-right">Export pays</th>
-                    <th className="px-4 py-2 text-right">Cheapest in Torn</th>
+                    <th className="px-4 py-2 text-right">Item market</th>
                     <th className="px-4 py-2 text-right">Profit / unit</th>
                     <th className="px-4 py-2 text-right">ROI</th>
                     <th className="px-4 py-2 text-center">Black mkt</th>
+                    <th className="px-4 py-2">Bazaars</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleRows.slice(0, 100).map((row, i) => (
+                    <Fragment key={row.item.id}>
                     <tr
-                      key={row.item.id}
                       className="border-b border-border/50 last:border-0 hover:bg-accent/50"
                     >
                       <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
@@ -292,11 +324,39 @@ function Index() {
                           title="Black market goods are bought back at 100% of the current foreign price"
                         />
                       </td>
+                      <td className="px-4 py-2">
+                        <Button size="sm" variant="outline" disabled={bazaarLoading !== null}
+                          onClick={() => {
+                            setBazaarError(null);
+                            if (expandedItem === row.item.id) setExpandedItem(null);
+                            else if (bazaarPages[row.item.id]) setExpandedItem(row.item.id);
+                            else void loadBazaars(row.item.id);
+                          }}>
+                          {bazaarLoading === row.item.id ? "Loading…" : expandedItem === row.item.id ? "Hide sellers" : "Find sellers"}
+                        </Button>
+                      </td>
                     </tr>
+                    {expandedItem === row.item.id && (
+                      <tr className="border-b border-border bg-muted/30">
+                        <td colSpan={10} className="px-4 py-4">
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="font-semibold">{row.item.name} — TornW3B bazaars</h3>
+                            <Button size="sm" variant="outline" disabled={bazaarLoading !== null} onClick={() => void loadBazaars(row.item.id)}>Refresh sellers</Button>
+                          </div>
+                          <p className="mb-3 text-xs text-muted-foreground">Export pays {formatMoney(row.exportPrice)} / unit. Listings may change before you buy; confirm stock and price in the seller’s bazaar.</p>
+                          {bazaarError && <p role="alert" className="mb-3 text-sm text-destructive">{bazaarError}</p>}
+                          {bazaarPages[row.item.id] && <BazaarResults offers={bazaarPages[row.item.id]?.offers ?? []} exportPrice={row.exportPrice} slots={slots} />}
+                          {bazaarLoading === row.item.id && <p role="status" className="py-2 text-sm text-muted-foreground">Loading bazaar listings…</p>}
+                          {bazaarPages[row.item.id]?.hasMore && <Button className="mt-3" size="sm" variant="outline" disabled={bazaarLoading !== null}
+                            onClick={() => void loadBazaars(row.item.id, (bazaarPages[row.item.id]?.page ?? 1) + 1)}>More sellers</Button>}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                   {visibleRows.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                         No profitable exports found for this destination right now.
                       </td>
                     </tr>

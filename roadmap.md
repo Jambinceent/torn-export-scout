@@ -1,8 +1,8 @@
 # Roadmap
 
 - [x] Add tested bazaar-offer ranking and profit calculations, limited by seller stock and travel slots.
-- [ ] Connect TornW3B listings securely and map its documented seller fields; waiting for the next work session and secure key setup.
-- [ ] Add seller links, prices, quantities, freshness, and export profit to scanned items; waiting for TornW3B connection.
+- [x] Connect TornW3B public listings without credentials; seller fields confirmed from live responses.
+- [x] Add on-demand seller links, prices, quantities, freshness, and export profit to scanned items; live seller lookup and pagination verified using a sample Torn scan. Full scan with the user's real Torn key remains unverified.
 
 - [x] Correct Incorrect ID scan error, v2 response parsing, and destination feed parsing; regression tests pass. A live authenticated scan still requires the user's Torn key in the preview.
 
