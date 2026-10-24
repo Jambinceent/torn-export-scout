@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { BazaarResults } from "@/components/bazaar-results";
+import { ShoppingList } from "@/components/shopping-list";
+import { BazaarRequestGuard } from "@/lib/shopping";
 import { fetchBazaarItem } from "@/lib/bazaar.functions";
 import type { BazaarOffer } from "@/lib/bazaar";
 
@@ -48,6 +50,9 @@ function Index() {
   const [bazaarLoading, setBazaarLoading] = useState<number | null>(null);
   const [bazaarError, setBazaarError] = useState<string | null>(null);
   const [bazaarPages, setBazaarPages] = useState<Record<number, { offers: BazaarOffer[]; page: number; hasMore: boolean }>>({});
+  const bazaarGuard = useRef(new BazaarRequestGuard());
+  const bazaarBusy = useRef(false);
+  const [scanVersion, setScanVersion] = useState(0);
   useEffect(() => {
     setApiKey(window.localStorage.getItem(API_KEY_STORAGE) ?? "");
   }, []);
@@ -61,6 +66,7 @@ function Index() {
   const [hideLosses, setHideLosses] = useState(true);
 
   async function scan() {
+    setScanVersion(previous => previous + 1);
     setExpandedItem(null);
     setBazaarPages({});
     setBazaarError(null);
@@ -79,12 +85,19 @@ function Index() {
   }
 
   async function loadBazaars(itemId: number, page = 1) {
+    if (bazaarBusy.current) return;
     setExpandedItem(itemId);
+    const blocked = bazaarGuard.current.reserve(Date.now());
+    if (blocked) { setBazaarError(blocked); return; }
+    bazaarBusy.current = true;
     setBazaarLoading(itemId);
     setBazaarError(null);
     try {
       const result = await fetchBazaars({ data: { itemId, page } });
-      if (result.error) setBazaarError(result.error);
+      if (result.error) {
+        setBazaarError(result.error);
+        if (/limit|429/i.test(result.error)) bazaarGuard.current.pause(Date.now());
+      }
       if (result.data) {
         const next = result.data;
         setBazaarPages((previous) => ({ ...previous, [itemId]: {
@@ -94,6 +107,7 @@ function Index() {
     } catch {
       setBazaarError("Could not reach TornW3B. Try again later.");
     } finally {
+      bazaarBusy.current = false;
       setBazaarLoading(null);
     }
   }
@@ -248,6 +262,9 @@ function Index() {
             </div>
           </section>
         )}
+
+        {data && <ShoppingList key={`${country}:${scanVersion}`} rows={rows} listings={data.listingsByItem}
+          bazaars={bazaarPages} slots={slots} loadingItem={bazaarLoading} error={bazaarError} loadSellers={loadBazaars} />}
 
         {data && (
           <section className="rounded-lg border border-border bg-card">
