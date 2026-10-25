@@ -1,7 +1,7 @@
 # Roadmap
 
-- [ ] Add a combined item-market/bazaar shopping shortlist with chosen quantities, luggage limits, seller backups, freshness, and purchase/unavailable tracking.
-- [ ] Add conservative session request controls and test the shopping flow; a full real-key scan remains unverified.
+- [x] Add a combined item-market/bazaar shopping shortlist with chosen quantities, luggage limits, seller backups, freshness, and purchase/unavailable tracking.
+- [x] Add conservative session request controls; 27 focused tests pass. Sample-scan flow verified with live TornW3B sellers, purchase/undo and unavailable controls without extra requests, and small-screen layout. Full real-key scan remains unverified.
 
 - [x] Add tested bazaar-offer ranking and profit calculations, limited by seller stock and travel slots.
 - [x] Connect TornW3B public listings without credentials; seller fields confirmed from live responses.

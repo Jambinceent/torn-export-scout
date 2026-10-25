@@ -52,7 +52,7 @@ export function ShoppingList({ rows, listings, bazaars, slots, loadingItem, erro
       {selectedRows.length > 0 && <Button variant="ghost" size="sm" onClick={() => { setTargets({}); setPurchases([]); setUnavailable(new Set()); setConfirming(null); }}>Clear list</Button>}
     </div>
     <div className="mb-4 flex flex-wrap items-end gap-3">
-      <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm"><span>Export item</span>
+      <label className="flex min-w-52 flex-1 flex-col gap-1 text-sm"><span>Export item</span>
         <select aria-label="Shopping item" value={selected} onChange={e => setSelected(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2">
           <option value="">Choose an item</option>
           {rows.map(row => <option key={row.item.id} value={row.item.id}>{row.item.name} — pays {formatMoney(row.exportPrice)}</option>)}
