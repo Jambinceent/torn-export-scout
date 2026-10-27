@@ -79,3 +79,12 @@ describe('session seller request safety', () => {
     expect(guard.reserve(86400000)).toBeNull();
   });
 });
+describe('max-profit suitcase recommendation', () => {
+  it('fills slots with the highest profit offers across goods', async () => {
+    const { recommendSuitcase } = await import('../lib/shopping');
+    const second = { ...row, item: { ...row.item, id: 2 } };
+    const secondOffers = combineOffers(2, [], [{ sellerId: 20, sellerName: 'Best', price: 10, quantity: 3, updatedAt: null }]);
+    const lines = recommendSuitcase([row, second], { 1: offers, 2: secondOffers }, 5);
+    expect(lines.map(l => [l.key, l.buyQuantity])).toEqual([['2:bazaar:20', 3], ['1:bazaar:10', 2]]);
+  });
+});
