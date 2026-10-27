@@ -3,8 +3,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { BazaarResults } from "@/components/bazaar-results";
-import { ShoppingList } from "@/components/shopping-list";
-import { BazaarRequestGuard } from "@/lib/shopping";
+import { SuitcasePlan } from "@/components/suitcase-plan";
+import { BazaarRequestGuard, combineOffers, recommendSuitcase } from "@/lib/shopping";
 import { fetchBazaarItem } from "@/lib/bazaar.functions";
 import type { BazaarOffer } from "@/lib/bazaar";
 
@@ -131,6 +131,39 @@ function Index() {
       }),
     );
   }, [data, country, ratePct, bmOverrides]);
+
+  const [autoProgress, setAutoProgress] = useState<string | null>(null);
+  const [now, setNow] = useState(0);
+  useEffect(() => { setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t); }, []);
+  // After each scan, check bazaars for the top 5 profitable goods only (5 TornW3B calls, 3s apart).
+  const topIds = rows.filter((r) => (r.profitPerUnit ?? -1) > 0).slice(0, 5).map((r) => r.item.id).join(",");
+  useEffect(() => {
+    if (!topIds) return;
+    let cancelled = false;
+    const ids = topIds.split(",").map(Number);
+    void (async () => {
+      for (let i = 0; i < ids.length && !cancelled; i++) {
+        setAutoProgress(`Checking bazaars ${i + 1} of ${ids.length}…`);
+        while (!cancelled && bazaarGuard.current.reserve(Date.now()) !== null) {
+          if (bazaarError && /limit|cooling|daily/i.test(bazaarError)) { cancelled = true; break; }
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+        if (cancelled) break;
+        try {
+          const result = await fetchBazaars({ data: { itemId: ids[i]!, page: 1 } });
+          if (result.error) { setBazaarError(result.error); if (/limit|429/i.test(result.error)) { bazaarGuard.current.pause(Date.now()); break; } }
+          const page = result.data;
+          if (page && !cancelled) setBazaarPages((prev) => ({ ...prev, [ids[i]!]: page }));
+        } catch { setBazaarError("Could not reach TornW3B. Try again later."); }
+      }
+      if (!cancelled) setAutoProgress(null);
+    })();
+    return () => { cancelled = true; setAutoProgress(null); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topIds, scanVersion]);
+  const plan = useMemo(() => recommendSuitcase(rows, Object.fromEntries(rows.map((r) => [r.item.id,
+    combineOffers(r.item.id, data?.listingsByItem[r.item.id] ?? [], bazaarPages[r.item.id]?.offers ?? [])])), slots),
+    [rows, data, bazaarPages, slots]);
 
   const visibleRows = hideLosses ? rows.filter((r) => (r.profitPerUnit ?? -1) > 0) : rows;
   const best = visibleRows[0] ?? null;
@@ -263,8 +296,7 @@ function Index() {
           </section>
         )}
 
-        {data && <ShoppingList key={`${country}:${scanVersion}`} rows={rows} listings={data.listingsByItem}
-          bazaars={bazaarPages} slots={slots} loadingItem={bazaarLoading} error={bazaarError} loadSellers={loadBazaars} />}
+        {data && rows.length > 0 && <SuitcasePlan lines={plan} slots={slots} progress={autoProgress} now={now} />}
 
         {data && (
           <section className="rounded-lg border border-border bg-card">
