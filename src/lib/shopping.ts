@@ -100,3 +100,25 @@ export class BazaarRequestGuard {
 
   pause(now: number) { this.pausedUntil = now + 60000; }
 }
+// Max-profit suitcase: greedily fill free slots with the highest profit-per-unit offers across all goods.
+// With only a slot limit (no budget), this greedy order is optimal.
+export function recommendSuitcase(rows: ExportRow[], offers: Record<number, ShoppingOffer[]>, slots: number): ShoppingLine[] {
+  const candidates = rows.flatMap(row => (offers[row.item.id] ?? [])
+    .filter(offer => offer.price < row.exportPrice)
+    .map(offer => ({ row, offer, profit: row.exportPrice - offer.price })))
+    .sort((a, b) => b.profit - a.profit || a.offer.key.localeCompare(b.offer.key));
+  let capacity = Math.max(0, Math.floor(slots));
+  const perItem = new Map<number, number>();
+  const lines: ShoppingLine[] = [];
+  for (const { row, offer, profit } of candidates) {
+    if (capacity <= 0) break;
+    const cap = /weapon|armor|armour/i.test(row.item.type) ? 100 : Infinity;
+    const used = perItem.get(row.item.id) ?? 0;
+    const buyQuantity = Math.min(capacity, offer.quantity, cap - used);
+    if (buyQuantity <= 0) continue;
+    lines.push({ ...offer, itemName: row.item.name, exportPrice: row.exportPrice, buyQuantity, profitPerUnit: profit });
+    perItem.set(row.item.id, used + buyQuantity);
+    capacity -= buyQuantity;
+  }
+  return lines;
+}

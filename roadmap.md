@@ -1,6 +1,7 @@
 # Roadmap
 
-- [x] Add a combined item-market/bazaar shopping shortlist with chosen quantities, luggage limits, seller backups, freshness, and purchase/unavailable tracking.
+- [x] Replace shopping list with automatic max-profit "where to buy" plan after scan (top 5 goods, 5 TornW3B calls).
+- [x] (old) Add a combined item-market/bazaar shopping shortlist with chosen quantities, luggage limits, seller backups, freshness, and purchase/unavailable tracking.
 - [x] Add conservative session request controls; 27 focused tests pass. Sample-scan flow verified with live TornW3B sellers, purchase/undo and unavailable controls without extra requests, and small-screen layout. Full real-key scan remains unverified.
 
 - [x] Add tested bazaar-offer ranking and profit calculations, limited by seller stock and travel slots.
